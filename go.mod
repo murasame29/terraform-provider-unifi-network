@@ -1,13 +1,13 @@
 module github.com/murasame29/terraform-provider-unifi-network
 
-go 1.25.5
+go 1.25.0
 
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.17.0
 	github.com/hashicorp/terraform-plugin-go v0.29.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
 	github.com/hashicorp/terraform-plugin-testing v1.14.0
-	github.com/murasame29/unifi-client-go v0.0.0
+	github.com/murasame29/unifi-client-go v0.0.0-20260215151624-68af36c7a381
 )
 
 require (
@@ -33,5 +33,3 @@ require (
 	google.golang.org/grpc v1.77.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 )
-
-replace github.com/murasame29/unifi-client-go => ../unifi-client-go
