@@ -1,64 +1,111 @@
-# Terraform Provider Scaffolding (Terraform Plugin Framework)
+# Terraform Provider for UniFi Network
 
-_This template repository is built on the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework). The template repository built on the [Terraform Plugin SDK](https://github.com/hashicorp/terraform-plugin-sdk) can be found at [terraform-provider-scaffolding](https://github.com/hashicorp/terraform-provider-scaffolding). See [Which SDK Should I Use?](https://developer.hashicorp.com/terraform/plugin/framework-benefits) in the Terraform documentation for additional information._
-
-This repository is a *template* for a [Terraform](https://www.terraform.io) provider. It is intended as a starting point for creating Terraform providers, containing:
-
-- A resource and a data source (`internal/provider/`),
-- Examples (`examples/`) and generated documentation (`docs/`),
-- Miscellaneous meta files.
-
-These files contain boilerplate code that you will need to edit to create your own Terraform provider. Tutorials for creating Terraform providers can be found on the [HashiCorp Developer](https://developer.hashicorp.com/terraform/tutorials/providers-plugin-framework) platform. _Terraform Plugin Framework specific guides are titled accordingly._
-
-Please see the [GitHub template repository documentation](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/creating-a-repository-from-a-template) for how to create a new repository from this template on GitHub.
-
-Once you've written your provider, you'll want to [publish it on the Terraform Registry](https://developer.hashicorp.com/terraform/registry/providers/publishing) so that others can use it.
+This Terraform provider allows you to manage UniFi Network resources using the [UniFi Cloud API](https://developer.ui.com/).
 
 ## Requirements
 
 - [Terraform](https://developer.hashicorp.com/terraform/downloads) >= 1.0
-- [Go](https://golang.org/doc/install) >= 1.24
+- [Go](https://golang.org/doc/install) >= 1.21 (for building from source)
 
-## Building The Provider
+## Installation
 
-1. Clone the repository
-1. Enter the repository directory
-1. Build the provider using the Go `install` command:
+### From Terraform Registry (Coming Soon)
 
-```shell
-go install
+```terraform
+terraform {
+  required_providers {
+    unifi = {
+      source  = "murasame29/unifi-network"
+      version = "~> 0.1"
+    }
+  }
+}
 ```
 
-## Adding Dependencies
+### Building from Source
 
-This provider uses [Go modules](https://github.com/golang/go/wiki/Modules).
-Please see the Go documentation for the most up to date information about using Go modules.
-
-To add a new dependency `github.com/author/dependency` to your Terraform provider:
-
-```shell
-go get github.com/author/dependency
-go mod tidy
+```bash
+git clone https://github.com/murasame29/terraform-provider-unifi-network.git
+cd terraform-provider-unifi-network
+go build -o terraform-provider-unifi-network
 ```
 
-Then commit the changes to `go.mod` and `go.sum`.
+## Configuration
 
-## Using the provider
-
-Fill this in for each provider
-
-## Developing the Provider
-
-If you wish to work on the provider, you'll first need [Go](http://www.golang.org) installed on your machine (see [Requirements](#requirements) above).
-
-To compile the provider, run `go install`. This will build the provider and put the provider binary in the `$GOPATH/bin` directory.
-
-To generate or update documentation, run `make generate`.
-
-In order to run the full suite of Acceptance tests, run `make testacc`.
-
-*Note:* Acceptance tests create real resources, and often cost money to run.
-
-```shell
-make testacc
+```terraform
+provider "unifi" {
+  api_key = var.unifi_api_key
+  # base_url = "https://api.ui.com"  # Optional, defaults to UniFi Cloud API
+}
 ```
+
+### Environment Variables
+
+- `UNIFI_API_KEY` - UniFi Cloud API key
+- `UNIFI_BASE_URL` - Base URL for the API (optional)
+
+## Resources
+
+- `unifi_network` - Manage networks
+- `unifi_wifi_broadcast` - Manage WiFi broadcasts (SSIDs)
+
+## Data Sources
+
+- `unifi_sites` - List all sites
+- `unifi_network` - Get network details
+- `unifi_networks` - List networks for a site
+
+## Example Usage
+
+```terraform
+provider "unifi" {
+  api_key = var.unifi_api_key
+}
+
+# Get all sites
+data "unifi_sites" "all" {}
+
+# Create a guest network
+resource "unifi_network" "guest" {
+  site_id                 = data.unifi_sites.all.sites[0].id
+  name                    = "Guest Network"
+  enabled                 = true
+  vlan_id                 = 100
+  isolation_enabled       = true
+  internet_access_enabled = true
+}
+
+# Create a WiFi broadcast for the guest network
+resource "unifi_wifi_broadcast" "guest_wifi" {
+  site_id       = data.unifi_sites.all.sites[0].id
+  name          = "Guest WiFi"
+  enabled       = true
+  network_id    = unifi_network.guest.id
+  security_type = "wpa2"
+  passphrase    = var.wifi_passphrase
+}
+```
+
+## Development
+
+### Building
+
+```bash
+go build -o terraform-provider-unifi-network
+```
+
+### Testing
+
+```bash
+go test ./...
+```
+
+### Generating Documentation
+
+```bash
+go generate ./...
+```
+
+## License
+
+MPL-2.0

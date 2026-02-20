@@ -1,108 +1,144 @@
-// Copyright IBM Corp. 2021, 2025
+// Copyright (c) 2025 murasame29
 // SPDX-License-Identifier: MPL-2.0
 
 package provider
 
 import (
 	"context"
-	"net/http"
+	"os"
 
-	"github.com/hashicorp/terraform-plugin-framework/action"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
-	"github.com/hashicorp/terraform-plugin-framework/function"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/murasame29/unifi-client-go/services/network"
+	sitemanager "github.com/murasame29/unifi-client-go/services/site-manager"
 )
 
-// Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
-var _ provider.ProviderWithFunctions = &ScaffoldingProvider{}
-var _ provider.ProviderWithEphemeralResources = &ScaffoldingProvider{}
-var _ provider.ProviderWithActions = &ScaffoldingProvider{}
+var _ provider.Provider = &UnifiNetworkProvider{}
 
-// ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
-	// version is set to the provider version on release, "dev" when the
-	// provider is built and ran locally, and "test" when running acceptance
-	// testing.
+type UnifiNetworkProvider struct {
 	version string
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+type UnifiNetworkProviderModel struct {
+	APIKey  types.String `tfsdk:"api_key"`
+	BaseURL types.String `tfsdk:"base_url"`
 }
 
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
+type UnifiClients struct {
+	Network     *network.Client
+	SiteManager *sitemanager.Client
+}
+
+func (p *UnifiNetworkProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "unifi"
 	resp.Version = p.version
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *UnifiNetworkProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "The UniFi Network provider allows you to manage UniFi Network resources using the UniFi Cloud API.",
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
+			"api_key": schema.StringAttribute{
+				MarkdownDescription: "The API key for authenticating with the UniFi Cloud API. Can also be set via the `UNIFI_API_KEY` environment variable.",
+				Optional:            true,
+				Sensitive:           true,
+			},
+			"base_url": schema.StringAttribute{
+				MarkdownDescription: "The base URL for the UniFi Cloud API. Defaults to `https://api.ui.com`. Can also be set via the `UNIFI_BASE_URL` environment variable.",
 				Optional:            true,
 			},
 		},
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
+func (p *UnifiNetworkProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	tflog.Info(ctx, "Configuring UniFi Network provider")
 
-	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
-
+	var config UnifiNetworkProviderModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
+	apiKey := os.Getenv("UNIFI_API_KEY")
+	if !config.APIKey.IsNull() {
+		apiKey = config.APIKey.ValueString()
+	}
 
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
-	resp.DataSourceData = client
-	resp.ResourceData = client
+	if apiKey == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("api_key"),
+			"Missing UniFi API Key",
+			"The provider cannot create the UniFi API client as there is a missing or empty value for the UniFi API key. "+
+				"Set the api_key value in the configuration or use the UNIFI_API_KEY environment variable.",
+		)
+		return
+	}
+
+	baseURL := os.Getenv("UNIFI_BASE_URL")
+	if !config.BaseURL.IsNull() {
+		baseURL = config.BaseURL.ValueString()
+	}
+
+	var opts []network.Option
+	if baseURL != "" {
+		opts = append(opts, network.WithBaseURL(baseURL))
+	}
+
+	clients := &UnifiClients{
+		Network:     network.NewClient(apiKey, opts...),
+		SiteManager: sitemanager.NewClient(apiKey, opts...),
+	}
+
+	tflog.Debug(ctx, "Created UniFi API clients")
+
+	resp.DataSourceData = clients
+	resp.ResourceData = clients
 }
 
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
+func (p *UnifiNetworkProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewExampleResource,
+		NewNetworkResource,
+		NewWifiBroadcastResource,
+		NewACLRuleResource,
+		NewDNSPolicyResource,
+		NewFirewallZoneResource,
+		NewFirewallPolicyResource,
+		NewTrafficMatchingListResource,
+		NewVoucherResource,
 	}
 }
 
-func (p *ScaffoldingProvider) EphemeralResources(ctx context.Context) []func() ephemeral.EphemeralResource {
-	return []func() ephemeral.EphemeralResource{
-		NewExampleEphemeralResource,
-	}
-}
-
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+func (p *UnifiNetworkProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewExampleDataSource,
-	}
-}
-
-func (p *ScaffoldingProvider) Functions(ctx context.Context) []func() function.Function {
-	return []func() function.Function{
-		NewExampleFunction,
-	}
-}
-
-func (p *ScaffoldingProvider) Actions(ctx context.Context) []func() action.Action {
-	return []func() action.Action{
-		NewExampleAction,
+		NewSitesDataSource,
+		NewNetworkDataSource,
+		NewNetworksDataSource,
+		NewDevicesDataSource,
+		NewDeviceDataSource,
+		NewClientsDataSource,
+		NewACLRulesDataSource,
+		NewDNSPoliciesDataSource,
+		NewFirewallZonesDataSource,
+		NewFirewallPoliciesDataSource,
+		NewTrafficMatchingListsDataSource,
+		NewVouchersDataSource,
+		NewWANInterfacesDataSource,
+		NewVPNTunnelsDataSource,
+		NewVPNServersDataSource,
+		NewRadiusProfilesDataSource,
+		NewWifiBroadcastsDataSource,
 	}
 }
 
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &ScaffoldingProvider{
+		return &UnifiNetworkProvider{
 			version: version,
 		}
 	}
