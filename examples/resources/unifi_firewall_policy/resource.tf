@@ -184,10 +184,10 @@ resource "unifi_firewall_policy" "complex" {
   action      = "allow"
 
   source_endpoint = {
-    zone_id      = unifi_firewall_zone.internal.id
-    network_ids  = [unifi_network.corporate.id]
-    ip_addresses = ["10.0.0.0/24"]
-    port_ranges  = []
+    zone_id       = unifi_firewall_zone.internal.id
+    network_ids   = [unifi_network.corporate.id]
+    ip_addresses  = ["10.0.0.0/24"]
+    port_ranges   = []
     mac_addresses = []
   }
 

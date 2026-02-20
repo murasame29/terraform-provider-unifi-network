@@ -43,10 +43,10 @@ resource "unifi_wifi_broadcast" "wpa3" {
   passphrase    = "wpa3-secure-password"
 
   security_configuration = {
-    pmf_mode                = "required"
-    group_rekey_interval    = 3600
+    pmf_mode                    = "required"
+    group_rekey_interval        = 3600
     sae_anti_clogging_threshold = 5
-    sae_sync_limit          = 5
+    sae_sync_limit              = 5
   }
 }
 

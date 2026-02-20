@@ -13,9 +13,18 @@ Manages a UniFi network.
 ## Example Usage
 
 ```terraform
-# Create a new network
+# Basic network with VLAN
+resource "unifi_network" "basic" {
+  site_id    = "default"
+  name       = "Basic Network"
+  enabled    = true
+  vlan_id    = 10
+  management = "third-party"
+}
+
+# Guest network with isolation
 resource "unifi_network" "guest" {
-  site_id    = "your-site-id"
+  site_id    = "default"
   name       = "Guest Network"
   enabled    = true
   vlan_id    = 100
@@ -24,6 +33,115 @@ resource "unifi_network" "guest" {
   isolation_enabled       = true
   internet_access_enabled = true
   mdns_forwarding_enabled = false
+}
+
+# Network with IPv4 DHCP configuration
+resource "unifi_network" "dhcp_network" {
+  site_id    = "default"
+  name       = "DHCP Network"
+  enabled    = true
+  vlan_id    = 20
+  management = "third-party"
+
+  ipv4_configuration = {
+    static_subnet = "192.168.20.0/24"
+    gateway       = "192.168.20.1"
+    dns_servers   = ["8.8.8.8", "8.8.4.4"]
+    dhcp = {
+      mode               = "server"
+      start              = "192.168.20.100"
+      end                = "192.168.20.200"
+      lease_time_seconds = 86400
+      dns_servers        = ["192.168.20.1"]
+      gateway            = "192.168.20.1"
+      boot_enabled       = false
+    }
+  }
+}
+
+# Network with IPv6 configuration
+resource "unifi_network" "ipv6_network" {
+  site_id    = "default"
+  name       = "IPv6 Network"
+  enabled    = true
+  vlan_id    = 30
+  management = "third-party"
+
+  ipv6_configuration = {
+    mode          = "static"
+    static_subnet = "2001:db8::/64"
+    gateway       = "2001:db8::1"
+    dns_servers   = ["2001:4860:4860::8888", "2001:4860:4860::8844"]
+    ra = {
+      enabled                    = true
+      mode                       = "slaac"
+      priority                   = "high"
+      valid_lifetime_seconds     = 86400
+      preferred_lifetime_seconds = 14400
+    }
+  }
+}
+
+# Network with NAT outbound configuration
+resource "unifi_network" "nat_network" {
+  site_id    = "default"
+  name       = "NAT Network"
+  enabled    = true
+  vlan_id    = 40
+  management = "third-party"
+
+  nat_outbound = {
+    mode = "auto"
+  }
+}
+
+# Network with DHCP guarding
+resource "unifi_network" "secure_network" {
+  site_id    = "default"
+  name       = "Secure Network"
+  enabled    = true
+  vlan_id    = 50
+  management = "third-party"
+
+  dhcp_guarding = {
+    enabled                 = true
+    allowed_dhcp_server_ids = ["00:11:22:33:44:55"]
+  }
+}
+
+# Corporate network with full configuration
+resource "unifi_network" "corporate" {
+  site_id    = "default"
+  name       = "Corporate Network"
+  enabled    = true
+  vlan_id    = 1
+  management = "third-party"
+
+  isolation_enabled       = false
+  internet_access_enabled = true
+  mdns_forwarding_enabled = true
+
+  ipv4_configuration = {
+    static_subnet = "10.0.0.0/24"
+    gateway       = "10.0.0.1"
+    dns_servers   = ["10.0.0.1"]
+    dhcp = {
+      mode               = "server"
+      start              = "10.0.0.50"
+      end                = "10.0.0.250"
+      lease_time_seconds = 43200
+      dns_servers        = ["10.0.0.1", "8.8.8.8"]
+      gateway            = "10.0.0.1"
+      boot_enabled       = false
+      ntp_servers        = ["pool.ntp.org"]
+      tftp_server        = ""
+      wins_servers       = []
+    }
+  }
+
+  nat_outbound = {
+    mode = "auto"
+  }
 }
 ```
 
@@ -37,13 +155,159 @@ resource "unifi_network" "guest" {
 
 ### Optional
 
+- `cellular_backup_enabled` (Boolean) Whether cellular backup is enabled. Defaults to `false`.
+- `device_id` (String) The device ID associated with this network.
+- `dhcp_guarding` (Attributes) DHCP guarding configuration. (see [below for nested schema](#nestedatt--dhcp_guarding))
 - `enabled` (Boolean) Whether the network is enabled. Defaults to `true`.
 - `internet_access_enabled` (Boolean) Whether internet access is enabled. Defaults to `true`.
+- `ipv4_configuration` (Attributes) IPv4 configuration for the network. (see [below for nested schema](#nestedatt--ipv4_configuration))
+- `ipv6_configuration` (Attributes) IPv6 configuration for the network. (see [below for nested schema](#nestedatt--ipv6_configuration))
 - `isolation_enabled` (Boolean) Whether network isolation is enabled. Defaults to `false`.
 - `management` (String) The management type of the network. Defaults to `third-party`.
 - `mdns_forwarding_enabled` (Boolean) Whether mDNS forwarding is enabled. Defaults to `false`.
 - `vlan_id` (Number) The VLAN ID of the network. Defaults to `1`.
+- `zone_id` (String) The firewall zone ID for this network.
 
 ### Read-Only
 
 - `id` (String) The unique identifier of the network.
+
+<a id="nestedatt--dhcp_guarding"></a>
+### Nested Schema for `dhcp_guarding`
+
+Optional:
+
+- `trusted_dhcp_server_ip_addresses` (List of String) List of trusted DHCP server IP addresses.
+
+
+<a id="nestedatt--ipv4_configuration"></a>
+### Nested Schema for `ipv4_configuration`
+
+Optional:
+
+- `additional_host_ip_subnets` (List of String) Additional host IP subnets.
+- `auto_scale_enabled` (Boolean) Whether auto-scaling is enabled.
+- `dhcp_configuration` (Attributes) DHCP configuration. (see [below for nested schema](#nestedatt--ipv4_configuration--dhcp_configuration))
+- `host_ip_address` (String) The host IP address (gateway).
+- `nat_outbound_ip_address_configuration` (Attributes List) NAT outbound IP address configuration. (see [below for nested schema](#nestedatt--ipv4_configuration--nat_outbound_ip_address_configuration))
+- `prefix_length` (Number) The prefix length (subnet mask).
+
+<a id="nestedatt--ipv4_configuration--dhcp_configuration"></a>
+### Nested Schema for `ipv4_configuration.dhcp_configuration`
+
+Required:
+
+- `mode` (String) DHCP mode (dhcp-server, dhcp-relay, none).
+
+Optional:
+
+- `dhcp_server_ip_addresses` (List of String) DHCP server IP addresses (for relay mode).
+- `dns_server_ip_addresses_override` (List of String) DNS server IP addresses override.
+- `domain_name` (String) Domain name for DHCP clients.
+- `gateway_ip_address_override` (String) Gateway IP address override.
+- `ip_address_range` (Attributes) DHCP IP address range. (see [below for nested schema](#nestedatt--ipv4_configuration--dhcp_configuration--ip_address_range))
+- `lease_time_seconds` (Number) DHCP lease time in seconds.
+- `ntp_server_ip_addresses` (List of String) NTP server IP addresses.
+- `option43_value` (String) DHCP option 43 value.
+- `ping_conflict_detection_enabled` (Boolean) Whether ping conflict detection is enabled.
+- `pxe_configuration` (Attributes) PXE boot configuration. (see [below for nested schema](#nestedatt--ipv4_configuration--dhcp_configuration--pxe_configuration))
+- `tftp_server_address` (String) TFTP server address.
+- `time_offset_seconds` (Number) Time offset in seconds.
+- `wins_server_ip_addresses` (List of String) WINS server IP addresses.
+- `wpad_url` (String) WPAD URL.
+
+<a id="nestedatt--ipv4_configuration--dhcp_configuration--ip_address_range"></a>
+### Nested Schema for `ipv4_configuration.dhcp_configuration.ip_address_range`
+
+Optional:
+
+- `start` (String) Start IP address.
+- `stop` (String) Stop IP address.
+
+
+<a id="nestedatt--ipv4_configuration--dhcp_configuration--pxe_configuration"></a>
+### Nested Schema for `ipv4_configuration.dhcp_configuration.pxe_configuration`
+
+Required:
+
+- `filename` (String) PXE boot filename.
+- `server_ip_address` (String) PXE server IP address.
+
+
+
+<a id="nestedatt--ipv4_configuration--nat_outbound_ip_address_configuration"></a>
+### Nested Schema for `ipv4_configuration.nat_outbound_ip_address_configuration`
+
+Required:
+
+- `type` (String) NAT type.
+- `wan_interface_id` (String) WAN interface ID.
+
+Optional:
+
+- `ip_address_selectors` (Attributes List) IP address selectors. (see [below for nested schema](#nestedatt--ipv4_configuration--nat_outbound_ip_address_configuration--ip_address_selectors))
+
+<a id="nestedatt--ipv4_configuration--nat_outbound_ip_address_configuration--ip_address_selectors"></a>
+### Nested Schema for `ipv4_configuration.nat_outbound_ip_address_configuration.ip_address_selectors`
+
+Required:
+
+- `type` (String) Selector type.
+
+Optional:
+
+- `value` (String) Selector value.
+
+
+
+
+<a id="nestedatt--ipv6_configuration"></a>
+### Nested Schema for `ipv6_configuration`
+
+Required:
+
+- `interface_type` (String) IPv6 interface type (static, prefix-delegation, none).
+
+Optional:
+
+- `additional_host_ip_subnets` (List of String) Additional host IPv6 subnets.
+- `client_address_assignment` (Attributes) Client address assignment configuration. (see [below for nested schema](#nestedatt--ipv6_configuration--client_address_assignment))
+- `dns_server_ip_addresses_override` (List of String) DNS server IPv6 addresses override.
+- `host_ip_address` (String) Host IPv6 address.
+- `prefix_delegation_wan_interface_id` (String) WAN interface ID for prefix delegation.
+- `prefix_length` (String) IPv6 prefix length.
+- `router_advertisement` (Attributes) Router advertisement configuration. (see [below for nested schema](#nestedatt--ipv6_configuration--router_advertisement))
+
+<a id="nestedatt--ipv6_configuration--client_address_assignment"></a>
+### Nested Schema for `ipv6_configuration.client_address_assignment`
+
+Optional:
+
+- `dhcp_configuration` (Attributes) DHCPv6 configuration. (see [below for nested schema](#nestedatt--ipv6_configuration--client_address_assignment--dhcp_configuration))
+- `slaac_enabled` (Boolean) Whether SLAAC is enabled.
+
+<a id="nestedatt--ipv6_configuration--client_address_assignment--dhcp_configuration"></a>
+### Nested Schema for `ipv6_configuration.client_address_assignment.dhcp_configuration`
+
+Optional:
+
+- `ip_address_suffix_range` (Attributes) IPv6 address suffix range. (see [below for nested schema](#nestedatt--ipv6_configuration--client_address_assignment--dhcp_configuration--ip_address_suffix_range))
+- `lease_time_seconds` (Number) DHCPv6 lease time in seconds.
+
+<a id="nestedatt--ipv6_configuration--client_address_assignment--dhcp_configuration--ip_address_suffix_range"></a>
+### Nested Schema for `ipv6_configuration.client_address_assignment.dhcp_configuration.ip_address_suffix_range`
+
+Optional:
+
+- `start` (String) Start suffix.
+- `stop` (String) Stop suffix.
+
+
+
+
+<a id="nestedatt--ipv6_configuration--router_advertisement"></a>
+### Nested Schema for `ipv6_configuration.router_advertisement`
+
+Optional:
+
+- `priority` (String) Router advertisement priority (high, medium, low).

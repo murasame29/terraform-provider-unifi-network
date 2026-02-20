@@ -10,7 +10,7 @@ resource "unifi_voucher" "basic" {
 resource "unifi_voucher" "day_pass" {
   site_id            = "default"
   name               = "Day Pass"
-  time_limit_minutes = 1440  # 24 hours
+  time_limit_minutes = 1440 # 24 hours
   voucher_count      = 1
 }
 
@@ -18,7 +18,7 @@ resource "unifi_voucher" "day_pass" {
 resource "unifi_voucher" "week_pass" {
   site_id            = "default"
   name               = "Week Pass"
-  time_limit_minutes = 10080  # 7 days
+  time_limit_minutes = 10080 # 7 days
   voucher_count      = 1
 }
 
@@ -26,7 +26,7 @@ resource "unifi_voucher" "week_pass" {
 resource "unifi_voucher" "event_batch" {
   site_id            = "default"
   name               = "Conference Event"
-  time_limit_minutes = 480  # 8 hours
+  time_limit_minutes = 480 # 8 hours
   voucher_count      = 50
 }
 
@@ -36,16 +36,16 @@ resource "unifi_voucher" "multi_device" {
   name                   = "Multi-Device Pass"
   time_limit_minutes     = 1440
   voucher_count          = 1
-  authorized_guest_limit = 5  # Up to 5 devices
+  authorized_guest_limit = 5 # Up to 5 devices
 }
 
 # Voucher with data limit
 resource "unifi_voucher" "data_limited" {
-  site_id                = "default"
-  name                   = "Data Limited Pass"
-  time_limit_minutes     = 1440
-  voucher_count          = 10
-  data_usage_limit_mbytes = 1024  # 1 GB limit
+  site_id                 = "default"
+  name                    = "Data Limited Pass"
+  time_limit_minutes      = 1440
+  voucher_count           = 10
+  data_usage_limit_mbytes = 1024 # 1 GB limit
 }
 
 # Voucher with download rate limit
@@ -54,15 +54,15 @@ resource "unifi_voucher" "speed_limited" {
   name               = "Speed Limited Pass"
   time_limit_minutes = 1440
   voucher_count      = 10
-  rx_rate_limit_kbps = 5000   # 5 Mbps download
-  tx_rate_limit_kbps = 1000   # 1 Mbps upload
+  rx_rate_limit_kbps = 5000 # 5 Mbps download
+  tx_rate_limit_kbps = 1000 # 1 Mbps upload
 }
 
 # Premium voucher - no limits
 resource "unifi_voucher" "premium" {
   site_id            = "default"
   name               = "Premium Pass"
-  time_limit_minutes = 10080  # 7 days
+  time_limit_minutes = 10080 # 7 days
   voucher_count      = 5
   # No rate or data limits
 }
@@ -71,30 +71,30 @@ resource "unifi_voucher" "premium" {
 resource "unifi_voucher" "hotel_guest" {
   site_id                = "default"
   name                   = "Hotel Guest WiFi"
-  time_limit_minutes     = 4320  # 3 days
+  time_limit_minutes     = 4320 # 3 days
   voucher_count          = 1
   authorized_guest_limit = 3
-  rx_rate_limit_kbps     = 10000  # 10 Mbps download
-  tx_rate_limit_kbps     = 5000   # 5 Mbps upload
+  rx_rate_limit_kbps     = 10000 # 10 Mbps download
+  tx_rate_limit_kbps     = 5000  # 5 Mbps upload
 }
 
 # Cafe voucher - short duration, limited bandwidth
 resource "unifi_voucher" "cafe" {
   site_id                 = "default"
   name                    = "Cafe WiFi"
-  time_limit_minutes      = 120  # 2 hours
+  time_limit_minutes      = 120 # 2 hours
   voucher_count           = 100
   authorized_guest_limit  = 1
-  data_usage_limit_mbytes = 500   # 500 MB
-  rx_rate_limit_kbps      = 2000  # 2 Mbps download
-  tx_rate_limit_kbps      = 500   # 500 Kbps upload
+  data_usage_limit_mbytes = 500  # 500 MB
+  rx_rate_limit_kbps      = 2000 # 2 Mbps download
+  tx_rate_limit_kbps      = 500  # 500 Kbps upload
 }
 
 # Full-featured voucher
 resource "unifi_voucher" "full_featured" {
   site_id                 = "default"
   name                    = "Full Featured Pass"
-  time_limit_minutes      = 2880  # 48 hours
+  time_limit_minutes      = 2880 # 48 hours
   voucher_count           = 25
   authorized_guest_limit  = 2
   data_usage_limit_mbytes = 5120  # 5 GB

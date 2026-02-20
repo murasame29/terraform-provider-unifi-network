@@ -33,9 +33,9 @@ resource "unifi_network" "dhcp_network" {
     gateway       = "192.168.20.1"
     dns_servers   = ["8.8.8.8", "8.8.4.4"]
     dhcp = {
-      mode  = "server"
-      start = "192.168.20.100"
-      end   = "192.168.20.200"
+      mode               = "server"
+      start              = "192.168.20.100"
+      end                = "192.168.20.200"
       lease_time_seconds = 86400
       dns_servers        = ["192.168.20.1"]
       gateway            = "192.168.20.1"
@@ -53,14 +53,14 @@ resource "unifi_network" "ipv6_network" {
   management = "third-party"
 
   ipv6_configuration = {
-    mode = "static"
+    mode          = "static"
     static_subnet = "2001:db8::/64"
     gateway       = "2001:db8::1"
     dns_servers   = ["2001:4860:4860::8888", "2001:4860:4860::8844"]
     ra = {
-      enabled       = true
-      mode          = "slaac"
-      priority      = "high"
+      enabled                    = true
+      mode                       = "slaac"
+      priority                   = "high"
       valid_lifetime_seconds     = 86400
       preferred_lifetime_seconds = 14400
     }
@@ -89,7 +89,7 @@ resource "unifi_network" "secure_network" {
   management = "third-party"
 
   dhcp_guarding = {
-    enabled = true
+    enabled                 = true
     allowed_dhcp_server_ids = ["00:11:22:33:44:55"]
   }
 }

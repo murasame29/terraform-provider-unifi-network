@@ -10,25 +10,453 @@ description: |-
 
 Manages a UniFi firewall policy.
 
+## Example Usage
 
+```terraform
+# Basic firewall policy - allow traffic
+resource "unifi_firewall_policy" "allow_internal" {
+  site_id     = "default"
+  name        = "Allow Internal Traffic"
+  description = "Allow all traffic within internal zone"
+  enabled     = true
+  action      = "allow"
+
+  source_endpoint = {
+    zone_id = unifi_firewall_zone.internal.id
+  }
+
+  destination_endpoint = {
+    zone_id = unifi_firewall_zone.internal.id
+  }
+}
+
+# Block traffic between zones
+resource "unifi_firewall_policy" "block_guest_to_internal" {
+  site_id     = "default"
+  name        = "Block Guest to Internal"
+  description = "Block guest network from accessing internal resources"
+  enabled     = true
+  action      = "block"
+
+  source_endpoint = {
+    zone_id = unifi_firewall_zone.guest.id
+  }
+
+  destination_endpoint = {
+    zone_id = unifi_firewall_zone.internal.id
+  }
+}
+
+# Allow specific ports
+resource "unifi_firewall_policy" "allow_web" {
+  site_id     = "default"
+  name        = "Allow Web Traffic"
+  description = "Allow HTTP and HTTPS traffic"
+  enabled     = true
+  action      = "allow"
+
+  source_endpoint = {
+    zone_id = unifi_firewall_zone.guest.id
+  }
+
+  destination_endpoint = {
+    zone_id     = unifi_firewall_zone.dmz.id
+    port_ranges = ["80", "443"]
+  }
+
+  ip_protocol_scope = {
+    protocol = "tcp"
+  }
+}
+
+# Policy with IP address filter
+resource "unifi_firewall_policy" "allow_dns_server" {
+  site_id     = "default"
+  name        = "Allow DNS Server"
+  description = "Allow access to DNS server"
+  enabled     = true
+  action      = "allow"
+
+  source_endpoint = {
+    zone_id = unifi_firewall_zone.internal.id
+  }
+
+  destination_endpoint = {
+    ip_addresses = ["8.8.8.8", "8.8.4.4"]
+    port_ranges  = ["53"]
+  }
+
+  ip_protocol_scope = {
+    protocol = "udp"
+  }
+}
+
+# Policy with network filter
+resource "unifi_firewall_policy" "allow_to_network" {
+  site_id     = "default"
+  name        = "Allow to Specific Network"
+  description = "Allow traffic to specific network"
+  enabled     = true
+  action      = "allow"
+
+  source_endpoint = {
+    zone_id = unifi_firewall_zone.internal.id
+  }
+
+  destination_endpoint = {
+    network_ids = [unifi_network.corporate.id]
+  }
+}
+
+# Policy with schedule
+resource "unifi_firewall_policy" "business_hours_only" {
+  site_id     = "default"
+  name        = "Business Hours Access"
+  description = "Allow access only during business hours"
+  enabled     = true
+  action      = "allow"
+
+  source_endpoint = {
+    zone_id = unifi_firewall_zone.guest.id
+  }
+
+  destination_endpoint = {
+    zone_id = unifi_firewall_zone.dmz.id
+  }
+
+  schedule = {
+    mode             = "custom"
+    repeat_on_days   = ["monday", "tuesday", "wednesday", "thursday", "friday"]
+    time_range_start = "09:00"
+    time_range_end   = "18:00"
+  }
+}
+
+# Policy with connection state filter
+resource "unifi_firewall_policy" "established_only" {
+  site_id     = "default"
+  name        = "Allow Established"
+  description = "Allow only established connections"
+  enabled     = true
+  action      = "allow"
+
+  source_endpoint = {
+    zone_id = unifi_firewall_zone.dmz.id
+  }
+
+  destination_endpoint = {
+    zone_id = unifi_firewall_zone.internal.id
+  }
+
+  connection_state_filter = {
+    established = true
+    related     = true
+    new         = false
+    invalid     = false
+  }
+}
+
+# Block IoT from management
+resource "unifi_firewall_policy" "block_iot_management" {
+  site_id     = "default"
+  name        = "Block IoT to Management"
+  description = "Prevent IoT devices from accessing management network"
+  enabled     = true
+  action      = "block"
+
+  source_endpoint = {
+    zone_id = unifi_firewall_zone.iot.id
+  }
+
+  destination_endpoint = {
+    zone_id = unifi_firewall_zone.management.id
+  }
+}
+
+# Allow IoT to internet only
+resource "unifi_firewall_policy" "iot_internet" {
+  site_id     = "default"
+  name        = "IoT Internet Access"
+  description = "Allow IoT devices to access internet"
+  enabled     = true
+  action      = "allow"
+
+  source_endpoint = {
+    zone_id = unifi_firewall_zone.iot.id
+  }
+
+  destination_endpoint = {
+    matching_target = "internet"
+  }
+}
+
+# Complex policy with all options
+resource "unifi_firewall_policy" "complex" {
+  site_id     = "default"
+  name        = "Complex Policy"
+  description = "Full-featured firewall policy example"
+  enabled     = true
+  action      = "allow"
+
+  source_endpoint = {
+    zone_id       = unifi_firewall_zone.internal.id
+    network_ids   = [unifi_network.corporate.id]
+    ip_addresses  = ["10.0.0.0/24"]
+    port_ranges   = []
+    mac_addresses = []
+  }
+
+  destination_endpoint = {
+    zone_id      = unifi_firewall_zone.dmz.id
+    ip_addresses = ["192.168.100.0/24"]
+    port_ranges  = ["80", "443", "8080-8090"]
+  }
+
+  ip_protocol_scope = {
+    protocol = "tcp_udp"
+  }
+
+  schedule = {
+    mode             = "custom"
+    repeat_on_days   = ["monday", "tuesday", "wednesday", "thursday", "friday"]
+    time_range_start = "08:00"
+    time_range_end   = "20:00"
+  }
+
+  connection_state_filter = {
+    established = true
+    related     = true
+    new         = true
+    invalid     = false
+  }
+}
+```
 
 <!-- schema generated by tfplugindocs -->
 ## Schema
 
 ### Required
 
-- `destination_zone_id` (String) The destination firewall zone ID.
+- `action` (Attributes) The action configuration. (see [below for nested schema](#nestedatt--action))
+- `destination` (Attributes) Destination endpoint configuration. (see [below for nested schema](#nestedatt--destination))
 - `name` (String) The name of the firewall policy.
 - `site_id` (String) The site ID.
-- `source_zone_id` (String) The source firewall zone ID.
+- `source` (Attributes) Source endpoint configuration. (see [below for nested schema](#nestedatt--source))
 
 ### Optional
 
-- `action_type` (String) The action type (allow/drop/reject). Defaults to `allow`.
+- `connection_state_filter` (List of String) Connection state filter (new, established, related, invalid).
 - `description` (String) The description.
 - `enabled` (Boolean) Whether the policy is enabled. Defaults to `true`.
+- `ip_protocol_scope` (Attributes) IP protocol scope configuration. (see [below for nested schema](#nestedatt--ip_protocol_scope))
+- `ipsec_filter` (String) IPsec filter (match-ipsec, match-none, any).
 - `logging_enabled` (Boolean) Whether logging is enabled. Defaults to `false`.
+- `schedule` (Attributes) Schedule configuration. (see [below for nested schema](#nestedatt--schedule))
 
 ### Read-Only
 
 - `id` (String) The unique identifier.
+
+<a id="nestedatt--action"></a>
+### Nested Schema for `action`
+
+Required:
+
+- `type` (String) Action type (allow, drop, reject).
+
+Optional:
+
+- `allow_return_traffic` (Boolean) Whether to allow return traffic.
+
+
+<a id="nestedatt--destination"></a>
+### Nested Schema for `destination`
+
+Required:
+
+- `zone_id` (String) Destination firewall zone ID.
+
+Optional:
+
+- `traffic_filter` (Attributes) Traffic filter configuration. (see [below for nested schema](#nestedatt--destination--traffic_filter))
+
+<a id="nestedatt--destination--traffic_filter"></a>
+### Nested Schema for `destination.traffic_filter`
+
+Required:
+
+- `type` (String) Filter type.
+
+Optional:
+
+- `ip_address_filter` (Attributes) IP address filter configuration. (see [below for nested schema](#nestedatt--destination--traffic_filter--ip_address_filter))
+- `network_filter` (Attributes) Network filter configuration. (see [below for nested schema](#nestedatt--destination--traffic_filter--network_filter))
+- `port_filter` (Attributes) Port filter configuration. (see [below for nested schema](#nestedatt--destination--traffic_filter--port_filter))
+- `region_filter` (Attributes) Region filter configuration. (see [below for nested schema](#nestedatt--destination--traffic_filter--region_filter))
+
+<a id="nestedatt--destination--traffic_filter--ip_address_filter"></a>
+### Nested Schema for `destination.traffic_filter.ip_address_filter`
+
+Required:
+
+- `type` (String) IP address filter type (items, traffic_matching_list).
+
+Optional:
+
+- `addresses` (List of String) List of IP addresses or subnets.
+- `match_opposite` (Boolean) Whether to match opposite.
+- `traffic_matching_list_id` (String) Traffic matching list ID.
+
+
+<a id="nestedatt--destination--traffic_filter--network_filter"></a>
+### Nested Schema for `destination.traffic_filter.network_filter`
+
+Required:
+
+- `network_ids` (List of String) List of network IDs.
+
+Optional:
+
+- `match_opposite` (Boolean) Whether to match opposite.
+
+
+<a id="nestedatt--destination--traffic_filter--port_filter"></a>
+### Nested Schema for `destination.traffic_filter.port_filter`
+
+Required:
+
+- `type` (String) Port filter type (items, traffic_matching_list).
+
+Optional:
+
+- `match_opposite` (Boolean) Whether to match opposite.
+- `ports` (List of Number) List of ports.
+- `traffic_matching_list_id` (String) Traffic matching list ID.
+
+
+<a id="nestedatt--destination--traffic_filter--region_filter"></a>
+### Nested Schema for `destination.traffic_filter.region_filter`
+
+Required:
+
+- `regions` (List of String) List of region codes.
+
+
+
+
+<a id="nestedatt--source"></a>
+### Nested Schema for `source`
+
+Required:
+
+- `zone_id` (String) Source firewall zone ID.
+
+Optional:
+
+- `traffic_filter` (Attributes) Traffic filter configuration. (see [below for nested schema](#nestedatt--source--traffic_filter))
+
+<a id="nestedatt--source--traffic_filter"></a>
+### Nested Schema for `source.traffic_filter`
+
+Required:
+
+- `type` (String) Filter type.
+
+Optional:
+
+- `ip_address_filter` (Attributes) IP address filter configuration. (see [below for nested schema](#nestedatt--source--traffic_filter--ip_address_filter))
+- `network_filter` (Attributes) Network filter configuration. (see [below for nested schema](#nestedatt--source--traffic_filter--network_filter))
+- `port_filter` (Attributes) Port filter configuration. (see [below for nested schema](#nestedatt--source--traffic_filter--port_filter))
+- `region_filter` (Attributes) Region filter configuration. (see [below for nested schema](#nestedatt--source--traffic_filter--region_filter))
+
+<a id="nestedatt--source--traffic_filter--ip_address_filter"></a>
+### Nested Schema for `source.traffic_filter.ip_address_filter`
+
+Required:
+
+- `type` (String) IP address filter type (items, traffic_matching_list).
+
+Optional:
+
+- `addresses` (List of String) List of IP addresses or subnets.
+- `match_opposite` (Boolean) Whether to match opposite.
+- `traffic_matching_list_id` (String) Traffic matching list ID.
+
+
+<a id="nestedatt--source--traffic_filter--network_filter"></a>
+### Nested Schema for `source.traffic_filter.network_filter`
+
+Required:
+
+- `network_ids` (List of String) List of network IDs.
+
+Optional:
+
+- `match_opposite` (Boolean) Whether to match opposite.
+
+
+<a id="nestedatt--source--traffic_filter--port_filter"></a>
+### Nested Schema for `source.traffic_filter.port_filter`
+
+Required:
+
+- `type` (String) Port filter type (items, traffic_matching_list).
+
+Optional:
+
+- `match_opposite` (Boolean) Whether to match opposite.
+- `ports` (List of Number) List of ports.
+- `traffic_matching_list_id` (String) Traffic matching list ID.
+
+
+<a id="nestedatt--source--traffic_filter--region_filter"></a>
+### Nested Schema for `source.traffic_filter.region_filter`
+
+Required:
+
+- `regions` (List of String) List of region codes.
+
+
+
+
+<a id="nestedatt--ip_protocol_scope"></a>
+### Nested Schema for `ip_protocol_scope`
+
+Required:
+
+- `ip_version` (String) IP version (ipv4, ipv6, both).
+
+Optional:
+
+- `protocol_filter` (Attributes) Protocol filter configuration. (see [below for nested schema](#nestedatt--ip_protocol_scope--protocol_filter))
+
+<a id="nestedatt--ip_protocol_scope--protocol_filter"></a>
+### Nested Schema for `ip_protocol_scope.protocol_filter`
+
+Required:
+
+- `type` (String) Filter type (protocol, protocol_number, preset).
+
+Optional:
+
+- `match_opposite` (Boolean) Whether to match opposite.
+- `preset_name` (String) Preset name.
+- `protocol_name` (String) Protocol name (tcp, udp, icmp, etc.).
+- `protocol_number` (Number) Protocol number.
+
+
+
+<a id="nestedatt--schedule"></a>
+### Nested Schema for `schedule`
+
+Required:
+
+- `mode` (String) Schedule mode (always, time-range).
+
+Optional:
+
+- `repeat_on_days` (List of String) Days to repeat (monday, tuesday, etc.).
+- `start_date` (String) Start date (YYYY-MM-DD).
+- `start_time` (String) Start time (HH:MM).
+- `stop_date` (String) Stop date (YYYY-MM-DD).
+- `stop_time` (String) Stop time (HH:MM).

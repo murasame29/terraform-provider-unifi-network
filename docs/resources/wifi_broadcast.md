@@ -13,17 +13,186 @@ Manages a UniFi WiFi broadcast (SSID).
 ## Example Usage
 
 ```terraform
-# Create a WiFi broadcast (SSID)
-resource "unifi_wifi_broadcast" "guest_wifi" {
-  site_id       = "your-site-id"
+# Basic WiFi broadcast with WPA2
+resource "unifi_wifi_broadcast" "basic" {
+  site_id       = "default"
+  name          = "Basic WiFi"
+  enabled       = true
+  network_id    = unifi_network.basic.id
+  security_type = "wpa2"
+  passphrase    = "secure-password-here"
+}
+
+# Guest WiFi with client isolation
+resource "unifi_wifi_broadcast" "guest" {
+  site_id       = "default"
   name          = "Guest WiFi"
   enabled       = true
   network_id    = unifi_network.guest.id
   security_type = "wpa2"
-  passphrase    = "secure-password-here"
+  passphrase    = "guest-password"
 
   hide_name                = false
   client_isolation_enabled = true
+}
+
+# Hidden WiFi network
+resource "unifi_wifi_broadcast" "hidden" {
+  site_id       = "default"
+  name          = "Hidden Network"
+  enabled       = true
+  network_id    = unifi_network.basic.id
+  security_type = "wpa3"
+  passphrase    = "very-secure-password"
+
+  hide_name = true
+}
+
+# WiFi with WPA3 security
+resource "unifi_wifi_broadcast" "wpa3" {
+  site_id       = "default"
+  name          = "WPA3 Network"
+  enabled       = true
+  network_id    = unifi_network.corporate.id
+  security_type = "wpa3"
+  passphrase    = "wpa3-secure-password"
+
+  security_configuration = {
+    pmf_mode                    = "required"
+    group_rekey_interval        = 3600
+    sae_anti_clogging_threshold = 5
+    sae_sync_limit              = 5
+  }
+}
+
+# WiFi with enterprise authentication (RADIUS)
+resource "unifi_wifi_broadcast" "enterprise" {
+  site_id       = "default"
+  name          = "Enterprise WiFi"
+  enabled       = true
+  network_id    = unifi_network.corporate.id
+  security_type = "wpa2-enterprise"
+
+  security_configuration = {
+    radius_profile_id = "radius-profile-id"
+    pmf_mode          = "optional"
+  }
+}
+
+# WiFi with device filter (specific APs only)
+resource "unifi_wifi_broadcast" "filtered" {
+  site_id       = "default"
+  name          = "Filtered WiFi"
+  enabled       = true
+  network_id    = unifi_network.basic.id
+  security_type = "wpa2"
+  passphrase    = "filtered-password"
+
+  broadcasting_device_filter = {
+    mode       = "include"
+    device_ids = ["ap-device-id-1", "ap-device-id-2"]
+  }
+}
+
+# WiFi with specific frequency configuration
+resource "unifi_wifi_broadcast" "dual_band" {
+  site_id       = "default"
+  name          = "Dual Band WiFi"
+  enabled       = true
+  network_id    = unifi_network.basic.id
+  security_type = "wpa2"
+  passphrase    = "dual-band-password"
+
+  frequencies = {
+    band_2_4_ghz = {
+      enabled           = true
+      min_rate_mbps     = 12
+      multicast_enhance = true
+    }
+    band_5_ghz = {
+      enabled           = true
+      min_rate_mbps     = 24
+      multicast_enhance = true
+    }
+    band_6_ghz = {
+      enabled           = false
+      min_rate_mbps     = 0
+      multicast_enhance = false
+    }
+  }
+}
+
+# WiFi with band steering
+resource "unifi_wifi_broadcast" "band_steering" {
+  site_id       = "default"
+  name          = "Band Steering WiFi"
+  enabled       = true
+  network_id    = unifi_network.basic.id
+  security_type = "wpa2"
+  passphrase    = "band-steering-password"
+
+  band_steering = {
+    mode = "prefer_5ghz"
+  }
+}
+
+# WiFi with MLO (Multi-Link Operation) for WiFi 7
+resource "unifi_wifi_broadcast" "wifi7_mlo" {
+  site_id       = "default"
+  name          = "WiFi 7 MLO"
+  enabled       = true
+  network_id    = unifi_network.basic.id
+  security_type = "wpa3"
+  passphrase    = "wifi7-mlo-password"
+
+  mlo = {
+    enabled = true
+  }
+}
+
+# Full-featured corporate WiFi
+resource "unifi_wifi_broadcast" "corporate" {
+  site_id       = "default"
+  name          = "Corporate WiFi"
+  enabled       = true
+  network_id    = unifi_network.corporate.id
+  security_type = "wpa3"
+  passphrase    = "corporate-secure-password"
+
+  hide_name                = false
+  client_isolation_enabled = false
+
+  security_configuration = {
+    pmf_mode             = "required"
+    group_rekey_interval = 3600
+  }
+
+  frequencies = {
+    band_2_4_ghz = {
+      enabled           = true
+      min_rate_mbps     = 12
+      multicast_enhance = true
+    }
+    band_5_ghz = {
+      enabled           = true
+      min_rate_mbps     = 24
+      multicast_enhance = true
+    }
+    band_6_ghz = {
+      enabled           = true
+      min_rate_mbps     = 24
+      multicast_enhance = true
+    }
+  }
+
+  band_steering = {
+    mode = "prefer_5ghz"
+  }
+
+  broadcasting_device_filter = {
+    mode       = "all"
+    device_ids = []
+  }
 }
 ```
 
@@ -37,14 +206,53 @@ resource "unifi_wifi_broadcast" "guest_wifi" {
 
 ### Optional
 
+- `advertise_device_name` (Boolean) Whether to advertise device name.
+- `arp_proxy_enabled` (Boolean) Whether ARP proxy is enabled.
+- `band_steering_enabled` (Boolean) Whether band steering is enabled.
+- `broadcasting_device_filter` (Attributes) Filter for broadcasting devices. (see [below for nested schema](#nestedatt--broadcasting_device_filter))
+- `broadcasting_frequencies_ghz` (List of Number) List of broadcasting frequencies in GHz (2.4, 5, 6).
+- `bss_transition_enabled` (Boolean) Whether BSS transition (802.11v) is enabled.
 - `client_isolation_enabled` (Boolean) Whether client isolation is enabled. Defaults to `false`.
 - `enabled` (Boolean) Whether the WiFi broadcast is enabled. Defaults to `true`.
 - `hide_name` (Boolean) Whether to hide the SSID. Defaults to `false`.
+- `mlo_enabled` (Boolean) Whether Multi-Link Operation (WiFi 7) is enabled.
+- `multicast_to_unicast_conversion_enabled` (Boolean) Whether multicast to unicast conversion is enabled. Defaults to `false`.
 - `network_id` (String) The network ID to associate with this WiFi broadcast.
-- `passphrase` (String, Sensitive) The WiFi passphrase. Required when security_type is not `open`.
-- `security_type` (String) The security type. Valid values: `open`, `wpa2`, `wpa3`, `wpa2wpa3`. Defaults to `wpa2`.
+- `security_configuration` (Attributes) Security configuration for the WiFi broadcast. (see [below for nested schema](#nestedatt--security_configuration))
 - `type` (String) The type of WiFi broadcast. Defaults to `standard`.
+- `uapsd_enabled` (Boolean) Whether U-APSD (Unscheduled Automatic Power Save Delivery) is enabled. Defaults to `true`.
 
 ### Read-Only
 
 - `id` (String) The unique identifier of the WiFi broadcast.
+
+<a id="nestedatt--broadcasting_device_filter"></a>
+### Nested Schema for `broadcasting_device_filter`
+
+Required:
+
+- `type` (String) Filter type (all, include, exclude).
+
+Optional:
+
+- `device_ids` (List of String) List of device IDs.
+- `device_tag_ids` (List of String) List of device tag IDs.
+
+
+<a id="nestedatt--security_configuration"></a>
+### Nested Schema for `security_configuration`
+
+Required:
+
+- `type` (String) Security type (open, wpa2, wpa3, wpa2wpa3).
+
+Optional:
+
+- `coa_enabled` (Boolean) Whether RADIUS Change of Authorization is enabled.
+- `fast_roaming_enabled` (Boolean) Whether fast roaming (802.11r) is enabled.
+- `group_rekey_interval_seconds` (Number) Group rekey interval in seconds.
+- `passphrase` (String, Sensitive) WiFi passphrase.
+- `pmf_mode` (String) Protected Management Frames mode (disabled, optional, required).
+- `radius_profile_id` (String) RADIUS profile ID for enterprise authentication.
+- `security_mode` (String) Security mode.
+- `wpa3_fast_roaming_enabled` (Boolean) Whether WPA3 fast roaming is enabled.
