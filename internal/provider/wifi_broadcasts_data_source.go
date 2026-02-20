@@ -25,8 +25,8 @@ type WifiBroadcastsDataSource struct {
 }
 
 type WifiBroadcastsDataSourceModel struct {
-	SiteID     types.String             `tfsdk:"site_id"`
-	Broadcasts []WifiBroadcastSummary   `tfsdk:"broadcasts"`
+	SiteID     types.String           `tfsdk:"site_id"`
+	Broadcasts []WifiBroadcastSummary `tfsdk:"broadcasts"`
 }
 
 type WifiBroadcastSummary struct {

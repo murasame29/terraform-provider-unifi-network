@@ -25,8 +25,8 @@ type TrafficMatchingListsDataSource struct {
 }
 
 type TrafficMatchingListsDataSourceModel struct {
-	SiteID types.String                   `tfsdk:"site_id"`
-	Lists  []TrafficMatchingListSummary   `tfsdk:"lists"`
+	SiteID types.String                 `tfsdk:"site_id"`
+	Lists  []TrafficMatchingListSummary `tfsdk:"lists"`
 }
 
 type TrafficMatchingListSummary struct {

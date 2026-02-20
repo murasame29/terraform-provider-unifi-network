@@ -25,8 +25,8 @@ type DNSPoliciesDataSource struct {
 }
 
 type DNSPoliciesDataSourceModel struct {
-	SiteID   types.String         `tfsdk:"site_id"`
-	Policies []DNSPolicySummary   `tfsdk:"policies"`
+	SiteID   types.String       `tfsdk:"site_id"`
+	Policies []DNSPolicySummary `tfsdk:"policies"`
 }
 
 type DNSPolicySummary struct {

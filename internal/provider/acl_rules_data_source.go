@@ -25,8 +25,8 @@ type ACLRulesDataSource struct {
 }
 
 type ACLRulesDataSourceModel struct {
-	SiteID types.String       `tfsdk:"site_id"`
-	Rules  []ACLRuleSummary   `tfsdk:"rules"`
+	SiteID types.String     `tfsdk:"site_id"`
+	Rules  []ACLRuleSummary `tfsdk:"rules"`
 }
 
 type ACLRuleSummary struct {

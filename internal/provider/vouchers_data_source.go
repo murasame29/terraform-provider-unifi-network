@@ -25,8 +25,8 @@ type VouchersDataSource struct {
 }
 
 type VouchersDataSourceModel struct {
-	SiteID   types.String       `tfsdk:"site_id"`
-	Vouchers []VoucherSummary   `tfsdk:"vouchers"`
+	SiteID   types.String     `tfsdk:"site_id"`
+	Vouchers []VoucherSummary `tfsdk:"vouchers"`
 }
 
 type VoucherSummary struct {

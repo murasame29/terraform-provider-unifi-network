@@ -25,7 +25,7 @@ type DevicesDataSource struct {
 }
 
 type DevicesDataSourceModel struct {
-	SiteID  types.String        `tfsdk:"site_id"`
+	SiteID  types.String         `tfsdk:"site_id"`
 	Devices []DeviceSummaryModel `tfsdk:"devices"`
 }
 
