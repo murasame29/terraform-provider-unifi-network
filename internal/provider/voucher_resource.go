@@ -34,7 +34,7 @@ type VoucherResourceModel struct {
 	Name             types.String `tfsdk:"name"`
 	Code             types.String `tfsdk:"code"`
 	TimeLimitMinutes types.Int64  `tfsdk:"time_limit_minutes"`
-	Count            types.Int64  `tfsdk:"count"`
+	VoucherCount     types.Int64  `tfsdk:"voucher_count"`
 }
 
 func (r *VoucherResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -70,7 +70,7 @@ func (r *VoucherResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Computed:            true,
 				Default:             int64default.StaticInt64(60),
 			},
-			"count": schema.Int64Attribute{
+			"voucher_count": schema.Int64Attribute{
 				MarkdownDescription: "Number of vouchers to generate. Defaults to `1`.",
 				Optional:            true,
 				Computed:            true,
@@ -101,12 +101,12 @@ func (r *VoucherResource) Create(ctx context.Context, req resource.CreateRequest
 
 	tflog.Debug(ctx, "Creating voucher", map[string]interface{}{"name": data.Name.ValueString()})
 
-	count := int(data.Count.ValueInt64())
+	voucherCount := int(data.VoucherCount.ValueInt64())
 	createReq := networktypes.GenerateVouchersRequest{
 		SiteID:           data.SiteID.ValueString(),
 		Name:             data.Name.ValueString(),
 		TimeLimitMinutes: int(data.TimeLimitMinutes.ValueInt64()),
-		Count:            &count,
+		Count:            &voucherCount,
 	}
 
 	result, err := r.client.GenerateVouchers(ctx, createReq)
