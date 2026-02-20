@@ -1,0 +1,156 @@
+# Basic ACL rule - block traffic between networks
+resource "unifi_acl_rule" "block_guest_to_lan" {
+  site_id     = "default"
+  name        = "Block Guest to LAN"
+  description = "Prevent guest network from accessing LAN"
+  enabled     = true
+  action      = "block"
+
+  source_filter = {
+    network_ids = [unifi_network.guest.id]
+  }
+
+  destination_filter = {
+    network_ids = [unifi_network.corporate.id]
+  }
+}
+
+# ACL rule with IP address filter
+resource "unifi_acl_rule" "block_ip_range" {
+  site_id     = "default"
+  name        = "Block IP Range"
+  description = "Block specific IP range"
+  enabled     = true
+  action      = "block"
+
+  source_filter = {
+    ip_addresses = ["192.168.100.0/24"]
+  }
+
+  destination_filter = {
+    ip_addresses = ["10.0.0.0/8"]
+  }
+}
+
+# ACL rule with MAC address filter
+resource "unifi_acl_rule" "block_mac" {
+  site_id     = "default"
+  name        = "Block MAC Address"
+  description = "Block specific MAC addresses"
+  enabled     = true
+  action      = "block"
+
+  source_filter = {
+    mac_addresses = ["00:11:22:33:44:55", "AA:BB:CC:DD:EE:FF"]
+  }
+}
+
+# ACL rule with protocol filter (TCP)
+resource "unifi_acl_rule" "block_tcp_ports" {
+  site_id     = "default"
+  name        = "Block TCP Ports"
+  description = "Block specific TCP ports"
+  enabled     = true
+  action      = "block"
+
+  protocol_filter = {
+    protocol = "tcp"
+    ports    = ["22", "23", "3389"]
+  }
+
+  source_filter = {
+    network_ids = [unifi_network.guest.id]
+  }
+}
+
+# ACL rule with protocol filter (UDP)
+resource "unifi_acl_rule" "block_udp" {
+  site_id     = "default"
+  name        = "Block UDP Traffic"
+  description = "Block UDP traffic from guest"
+  enabled     = true
+  action      = "block"
+
+  protocol_filter = {
+    protocol = "udp"
+    ports    = ["53", "67", "68"]
+  }
+
+  source_filter = {
+    network_ids = [unifi_network.guest.id]
+  }
+}
+
+# ACL rule with enforcing device filter
+resource "unifi_acl_rule" "specific_ap" {
+  site_id     = "default"
+  name        = "AP Specific Rule"
+  description = "Rule enforced only on specific APs"
+  enabled     = true
+  action      = "block"
+
+  enforcing_device_filter = {
+    mode       = "include"
+    device_ids = ["ap-device-id-1", "ap-device-id-2"]
+  }
+
+  source_filter = {
+    network_ids = [unifi_network.guest.id]
+  }
+
+  destination_filter = {
+    ip_addresses = ["192.168.1.1"]
+  }
+}
+
+# Allow rule - permit specific traffic
+resource "unifi_acl_rule" "allow_dns" {
+  site_id     = "default"
+  name        = "Allow DNS"
+  description = "Allow DNS traffic from guest network"
+  enabled     = true
+  action      = "allow"
+
+  protocol_filter = {
+    protocol = "udp"
+    ports    = ["53"]
+  }
+
+  source_filter = {
+    network_ids = [unifi_network.guest.id]
+  }
+
+  destination_filter = {
+    ip_addresses = ["8.8.8.8", "8.8.4.4"]
+  }
+}
+
+# Complex ACL rule with multiple filters
+resource "unifi_acl_rule" "complex" {
+  site_id     = "default"
+  name        = "Complex ACL Rule"
+  description = "Complex rule with multiple filter types"
+  enabled     = true
+  action      = "block"
+
+  enforcing_device_filter = {
+    mode       = "all"
+    device_ids = []
+  }
+
+  source_filter = {
+    network_ids   = [unifi_network.guest.id]
+    ip_addresses  = ["192.168.100.0/24"]
+    mac_addresses = []
+  }
+
+  destination_filter = {
+    network_ids  = [unifi_network.corporate.id]
+    ip_addresses = ["10.0.0.0/24", "172.16.0.0/16"]
+  }
+
+  protocol_filter = {
+    protocol = "tcp"
+    ports    = ["80", "443", "8080"]
+  }
+}

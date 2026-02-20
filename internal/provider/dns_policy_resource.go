@@ -31,14 +31,24 @@ type DNSPolicyResource struct {
 }
 
 type DNSPolicyResourceModel struct {
-	SiteID      types.String `tfsdk:"site_id"`
-	ID          types.String `tfsdk:"id"`
-	Type        types.String `tfsdk:"type"`
-	Enabled     types.Bool   `tfsdk:"enabled"`
-	Domain      types.String `tfsdk:"domain"`
-	IPv4Address types.String `tfsdk:"ipv4_address"`
-	IPv6Address types.String `tfsdk:"ipv6_address"`
-	TTLSeconds  types.Int64  `tfsdk:"ttl_seconds"`
+	SiteID           types.String `tfsdk:"site_id"`
+	ID               types.String `tfsdk:"id"`
+	Type             types.String `tfsdk:"type"`
+	Enabled          types.Bool   `tfsdk:"enabled"`
+	Domain           types.String `tfsdk:"domain"`
+	IPv4Address      types.String `tfsdk:"ipv4_address"`
+	IPv6Address      types.String `tfsdk:"ipv6_address"`
+	TargetDomain     types.String `tfsdk:"target_domain"`
+	MailServerDomain types.String `tfsdk:"mail_server_domain"`
+	Priority         types.Int64  `tfsdk:"priority"`
+	Text             types.String `tfsdk:"text"`
+	ServerDomain     types.String `tfsdk:"server_domain"`
+	Service          types.String `tfsdk:"service"`
+	Protocol         types.String `tfsdk:"protocol"`
+	Port             types.Int64  `tfsdk:"port"`
+	Weight           types.Int64  `tfsdk:"weight"`
+	IPAddress        types.String `tfsdk:"ip_address"`
+	TTLSeconds       types.Int64  `tfsdk:"ttl_seconds"`
 }
 
 func (r *DNSPolicyResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -47,7 +57,7 @@ func (r *DNSPolicyResource) Metadata(ctx context.Context, req resource.MetadataR
 
 func (r *DNSPolicyResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages a UniFi DNS policy.",
+		MarkdownDescription: "Manages a UniFi DNS policy (local DNS record).",
 		Attributes: map[string]schema.Attribute{
 			"site_id": schema.StringAttribute{
 				MarkdownDescription: "The site ID.",
@@ -60,7 +70,7 @@ func (r *DNSPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "The DNS record type (A, AAAA, CNAME, etc.).",
+				MarkdownDescription: "The DNS record type (A, AAAA, CNAME, MX, TXT, SRV, PTR).",
 				Required:            true,
 			},
 			"enabled": schema.BoolAttribute{
@@ -79,6 +89,46 @@ func (r *DNSPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 			},
 			"ipv6_address": schema.StringAttribute{
 				MarkdownDescription: "The IPv6 address (for AAAA records).",
+				Optional:            true,
+			},
+			"target_domain": schema.StringAttribute{
+				MarkdownDescription: "The target domain (for CNAME records).",
+				Optional:            true,
+			},
+			"mail_server_domain": schema.StringAttribute{
+				MarkdownDescription: "The mail server domain (for MX records).",
+				Optional:            true,
+			},
+			"priority": schema.Int64Attribute{
+				MarkdownDescription: "The priority (for MX and SRV records).",
+				Optional:            true,
+			},
+			"text": schema.StringAttribute{
+				MarkdownDescription: "The text content (for TXT records).",
+				Optional:            true,
+			},
+			"server_domain": schema.StringAttribute{
+				MarkdownDescription: "The server domain (for SRV records).",
+				Optional:            true,
+			},
+			"service": schema.StringAttribute{
+				MarkdownDescription: "The service name (for SRV records, e.g., _sip).",
+				Optional:            true,
+			},
+			"protocol": schema.StringAttribute{
+				MarkdownDescription: "The protocol (for SRV records, e.g., _tcp, _udp).",
+				Optional:            true,
+			},
+			"port": schema.Int64Attribute{
+				MarkdownDescription: "The port number (for SRV records).",
+				Optional:            true,
+			},
+			"weight": schema.Int64Attribute{
+				MarkdownDescription: "The weight (for SRV records).",
+				Optional:            true,
+			},
+			"ip_address": schema.StringAttribute{
+				MarkdownDescription: "The IP address (for PTR records).",
 				Optional:            true,
 			},
 			"ttl_seconds": schema.Int64Attribute{
@@ -111,14 +161,33 @@ func (r *DNSPolicyResource) Create(ctx context.Context, req resource.CreateReque
 	tflog.Debug(ctx, "Creating DNS policy", map[string]interface{}{"type": data.Type.ValueString()})
 
 	createReq := networktypes.CreateDNSPolicyRequest{
-		SiteID:      data.SiteID.ValueString(),
-		Type:        data.Type.ValueString(),
-		Enabled:     data.Enabled.ValueBool(),
-		Domain:      data.Domain.ValueString(),
-		IPv4Address: data.IPv4Address.ValueString(),
-		IPv6Address: data.IPv6Address.ValueString(),
+		SiteID:           data.SiteID.ValueString(),
+		Type:             data.Type.ValueString(),
+		Enabled:          data.Enabled.ValueBool(),
+		Domain:           data.Domain.ValueString(),
+		IPv4Address:      data.IPv4Address.ValueString(),
+		IPv6Address:      data.IPv6Address.ValueString(),
+		TargetDomain:     data.TargetDomain.ValueString(),
+		MailServerDomain: data.MailServerDomain.ValueString(),
+		Text:             data.Text.ValueString(),
+		ServerDomain:     data.ServerDomain.ValueString(),
+		Service:          data.Service.ValueString(),
+		Protocol:         data.Protocol.ValueString(),
+		IPAddress:        data.IPAddress.ValueString(),
 	}
 
+	if !data.Priority.IsNull() {
+		priority := int(data.Priority.ValueInt64())
+		createReq.Priority = &priority
+	}
+	if !data.Port.IsNull() {
+		port := int(data.Port.ValueInt64())
+		createReq.Port = &port
+	}
+	if !data.Weight.IsNull() {
+		weight := int(data.Weight.ValueInt64())
+		createReq.Weight = &weight
+	}
 	if !data.TTLSeconds.IsNull() {
 		ttl := int(data.TTLSeconds.ValueInt64())
 		createReq.TTLSeconds = &ttl
@@ -155,6 +224,23 @@ func (r *DNSPolicyResource) Read(ctx context.Context, req resource.ReadRequest, 
 	data.Domain = types.StringValue(result.Domain)
 	data.IPv4Address = types.StringValue(result.IPv4Address)
 	data.IPv6Address = types.StringValue(result.IPv6Address)
+	data.TargetDomain = types.StringValue(result.TargetDomain)
+	data.MailServerDomain = types.StringValue(result.MailServerDomain)
+	data.Text = types.StringValue(result.Text)
+	data.ServerDomain = types.StringValue(result.ServerDomain)
+	data.Service = types.StringValue(result.Service)
+	data.Protocol = types.StringValue(result.Protocol)
+	data.IPAddress = types.StringValue(result.IPAddress)
+
+	if result.Priority != nil {
+		data.Priority = types.Int64Value(int64(*result.Priority))
+	}
+	if result.Port != nil {
+		data.Port = types.Int64Value(int64(*result.Port))
+	}
+	if result.Weight != nil {
+		data.Weight = types.Int64Value(int64(*result.Weight))
+	}
 	if result.TTLSeconds != nil {
 		data.TTLSeconds = types.Int64Value(int64(*result.TTLSeconds))
 	}
@@ -170,15 +256,34 @@ func (r *DNSPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 	}
 
 	updateReq := networktypes.UpdateDNSPolicyRequest{
-		SiteID:      data.SiteID.ValueString(),
-		PolicyID:    data.ID.ValueString(),
-		Type:        data.Type.ValueString(),
-		Enabled:     data.Enabled.ValueBool(),
-		Domain:      data.Domain.ValueString(),
-		IPv4Address: data.IPv4Address.ValueString(),
-		IPv6Address: data.IPv6Address.ValueString(),
+		SiteID:           data.SiteID.ValueString(),
+		PolicyID:         data.ID.ValueString(),
+		Type:             data.Type.ValueString(),
+		Enabled:          data.Enabled.ValueBool(),
+		Domain:           data.Domain.ValueString(),
+		IPv4Address:      data.IPv4Address.ValueString(),
+		IPv6Address:      data.IPv6Address.ValueString(),
+		TargetDomain:     data.TargetDomain.ValueString(),
+		MailServerDomain: data.MailServerDomain.ValueString(),
+		Text:             data.Text.ValueString(),
+		ServerDomain:     data.ServerDomain.ValueString(),
+		Service:          data.Service.ValueString(),
+		Protocol:         data.Protocol.ValueString(),
+		IPAddress:        data.IPAddress.ValueString(),
 	}
 
+	if !data.Priority.IsNull() {
+		priority := int(data.Priority.ValueInt64())
+		updateReq.Priority = &priority
+	}
+	if !data.Port.IsNull() {
+		port := int(data.Port.ValueInt64())
+		updateReq.Port = &port
+	}
+	if !data.Weight.IsNull() {
+		weight := int(data.Weight.ValueInt64())
+		updateReq.Weight = &weight
+	}
 	if !data.TTLSeconds.IsNull() {
 		ttl := int(data.TTLSeconds.ValueInt64())
 		updateReq.TTLSeconds = &ttl

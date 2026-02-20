@@ -29,12 +29,16 @@ type VoucherResource struct {
 }
 
 type VoucherResourceModel struct {
-	SiteID           types.String `tfsdk:"site_id"`
-	ID               types.String `tfsdk:"id"`
-	Name             types.String `tfsdk:"name"`
-	Code             types.String `tfsdk:"code"`
-	TimeLimitMinutes types.Int64  `tfsdk:"time_limit_minutes"`
-	VoucherCount     types.Int64  `tfsdk:"voucher_count"`
+	SiteID               types.String `tfsdk:"site_id"`
+	ID                   types.String `tfsdk:"id"`
+	Name                 types.String `tfsdk:"name"`
+	Code                 types.String `tfsdk:"code"`
+	TimeLimitMinutes     types.Int64  `tfsdk:"time_limit_minutes"`
+	VoucherCount         types.Int64  `tfsdk:"voucher_count"`
+	AuthorizedGuestLimit types.Int64  `tfsdk:"authorized_guest_limit"`
+	DataUsageLimitMBytes types.Int64  `tfsdk:"data_usage_limit_mbytes"`
+	RxRateLimitKbps      types.Int64  `tfsdk:"rx_rate_limit_kbps"`
+	TxRateLimitKbps      types.Int64  `tfsdk:"tx_rate_limit_kbps"`
 }
 
 func (r *VoucherResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -43,7 +47,7 @@ func (r *VoucherResource) Metadata(ctx context.Context, req resource.MetadataReq
 
 func (r *VoucherResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages UniFi hotspot vouchers.",
+		MarkdownDescription: "Manages UniFi hotspot vouchers for guest access.",
 		Attributes: map[string]schema.Attribute{
 			"site_id": schema.StringAttribute{
 				MarkdownDescription: "The site ID.",
@@ -76,6 +80,22 @@ func (r *VoucherResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Computed:            true,
 				Default:             int64default.StaticInt64(1),
 			},
+			"authorized_guest_limit": schema.Int64Attribute{
+				MarkdownDescription: "Maximum number of guests that can use this voucher. Leave empty for unlimited.",
+				Optional:            true,
+			},
+			"data_usage_limit_mbytes": schema.Int64Attribute{
+				MarkdownDescription: "Data usage limit in megabytes. Leave empty for unlimited.",
+				Optional:            true,
+			},
+			"rx_rate_limit_kbps": schema.Int64Attribute{
+				MarkdownDescription: "Download rate limit in kbps. Leave empty for unlimited.",
+				Optional:            true,
+			},
+			"tx_rate_limit_kbps": schema.Int64Attribute{
+				MarkdownDescription: "Upload rate limit in kbps. Leave empty for unlimited.",
+				Optional:            true,
+			},
 		},
 	}
 }
@@ -99,27 +119,43 @@ func (r *VoucherResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	tflog.Debug(ctx, "Creating voucher", map[string]interface{}{"name": data.Name.ValueString()})
-
-	voucherCount := int(data.VoucherCount.ValueInt64())
+	count := int(data.VoucherCount.ValueInt64())
 	createReq := networktypes.GenerateVouchersRequest{
 		SiteID:           data.SiteID.ValueString(),
 		Name:             data.Name.ValueString(),
 		TimeLimitMinutes: int(data.TimeLimitMinutes.ValueInt64()),
-		Count:            &voucherCount,
+		Count:            &count,
 	}
 
-	result, err := r.client.GenerateVouchers(ctx, createReq)
+	if !data.AuthorizedGuestLimit.IsNull() {
+		limit := int(data.AuthorizedGuestLimit.ValueInt64())
+		createReq.AuthorizedGuestLimit = &limit
+	}
+	if !data.DataUsageLimitMBytes.IsNull() {
+		limit := int(data.DataUsageLimitMBytes.ValueInt64())
+		createReq.DataUsageLimitMBytes = &limit
+	}
+	if !data.RxRateLimitKbps.IsNull() {
+		limit := int(data.RxRateLimitKbps.ValueInt64())
+		createReq.RxRateLimitKbps = &limit
+	}
+	if !data.TxRateLimitKbps.IsNull() {
+		limit := int(data.TxRateLimitKbps.ValueInt64())
+		createReq.TxRateLimitKbps = &limit
+	}
+
+	vouchersResp, err := r.client.GenerateVouchers(ctx, createReq)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create voucher: %s", err))
 		return
 	}
 
-	if len(result.Vouchers) > 0 {
-		data.ID = types.StringValue(result.Vouchers[0].ID)
-		data.Code = types.StringValue(result.Vouchers[0].Code)
+	if len(vouchersResp.Vouchers) > 0 {
+		data.ID = types.StringValue(vouchersResp.Vouchers[0].ID)
+		data.Code = types.StringValue(vouchersResp.Vouchers[0].Code)
 	}
 
+	tflog.Trace(ctx, "created voucher resource")
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -130,7 +166,7 @@ func (r *VoucherResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	result, err := r.client.GetVoucherDetails(ctx, networktypes.GetVoucherDetailsRequest{
+	voucher, err := r.client.GetVoucherDetails(ctx, networktypes.GetVoucherDetailsRequest{
 		SiteID:    data.SiteID.ValueString(),
 		VoucherID: data.ID.ValueString(),
 	})
@@ -139,15 +175,34 @@ func (r *VoucherResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	data.Name = types.StringValue(result.Name)
-	data.Code = types.StringValue(result.Code)
-	data.TimeLimitMinutes = types.Int64Value(int64(result.TimeLimitMinutes))
+	data.Name = types.StringValue(voucher.Name)
+	data.Code = types.StringValue(voucher.Code)
+	data.TimeLimitMinutes = types.Int64Value(int64(voucher.TimeLimitMinutes))
+	if voucher.AuthorizedGuestLimit != nil {
+		data.AuthorizedGuestLimit = types.Int64Value(int64(*voucher.AuthorizedGuestLimit))
+	}
+	if voucher.DataUsageLimitMBytes != nil {
+		data.DataUsageLimitMBytes = types.Int64Value(int64(*voucher.DataUsageLimitMBytes))
+	}
+	if voucher.RxRateLimitKbps != nil {
+		data.RxRateLimitKbps = types.Int64Value(int64(*voucher.RxRateLimitKbps))
+	}
+	if voucher.TxRateLimitKbps != nil {
+		data.TxRateLimitKbps = types.Int64Value(int64(*voucher.TxRateLimitKbps))
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *VoucherResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	resp.Diagnostics.AddError("Update Not Supported", "Vouchers cannot be updated. Delete and recreate instead.")
+	var data VoucherResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Vouchers are immutable - updates require replacement
+	resp.Diagnostics.AddError("Update Not Supported", "Vouchers cannot be updated. Please delete and recreate.")
 }
 
 func (r *VoucherResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -165,4 +220,6 @@ func (r *VoucherResource) Delete(ctx context.Context, req resource.DeleteRequest
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete voucher: %s", err))
 		return
 	}
+
+	tflog.Trace(ctx, "deleted voucher resource")
 }
